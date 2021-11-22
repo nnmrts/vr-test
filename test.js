@@ -1,4 +1,7 @@
 const {
+	args: [
+		times = 1
+	],
 	errors: {
 		NotFound
 	},
@@ -31,11 +34,26 @@ const loadConfig = async (cwd) => {
 	}
 }
 
-for (const configFilenameFolder of configFilenames) {
-	const path = `./configs/${configFilenameFolder}`;
-	const start = performance.now();
-	await loadConfig(path);
-	const end = performance.now();
+const allDurations = Object.fromEntries(configFilenames.map(name => [name, []]));
 
-	console.log(`${configFilenameFolder} took ${(end - start).toFixed(4)}ms.`)
+for (let index = 0; index <= times; index++) {
+
+	for (const configFilenameFolder of configFilenames) {
+		const path = `./configs/${configFilenameFolder}`;
+		const start = performance.now();
+		await loadConfig(path);
+		const end = performance.now();
+		const duration = end - start;
+		allDurations[configFilenameFolder].push(duration);
+
+	}
 }
+
+const average = (array) => array.reduce((a, b) => a + b, 0) / array.length;
+
+const averages = Object.fromEntries(
+	Object.entries(allDurations)
+		.map(([name, durations]) => [name, `${average(durations).toFixed(4)}ms`])
+);
+
+console.table(averages);
