@@ -1,7 +1,7 @@
+import { formatMsTable } from "./utilities.js";
+
 const {
-	args: [
-		times = 1
-	],
+	args,
 	errors: {
 		NotFound
 	},
@@ -9,8 +9,26 @@ const {
 	stat
 } = Deno;
 
+const extensibleArgs = [
+	"--times=1",
+	"--extensions=yaml,yml,json,ts,js,mjs",
+	...args,
+].reverse();
+
+const net = Boolean(extensibleArgs.find((arg) => arg.startsWith("--net")));
+const naive = Boolean(extensibleArgs.find((arg) => arg.startsWith("--naive")));
+const total = Boolean(extensibleArgs.find((arg) => arg.startsWith("--total")));
+const noResults = Boolean(extensibleArgs.find((arg) => arg.startsWith("--no-results")));
+const noFormat = Boolean(extensibleArgs.find((arg) => arg.startsWith("--no-format")));
+const noTotal = Boolean(extensibleArgs.find((arg) => arg.startsWith("--no-total")));
+
+const format = Boolean(extensibleArgs.find((arg) => arg.startsWith("--format")));
+const times = Number(extensibleArgs.find((arg) => arg.startsWith("--times=")).replace("--times=", ""))
+
+const extensions = extensibleArgs.find((arg) => arg.startsWith("--extensions=")).replace("--extensions=", "").split(",");
+
 const names = ["scripts", "velociraptor"];
-const extensions = ["yaml", "yml", "json", "ts", "js", "mjs"];
+const configsUrl = "https://raw.githubusercontent.com/nnmrts/vr-test/main/configs";
 
 const configFilenames = names
 	.map((name) => {
@@ -18,10 +36,10 @@ const configFilenames = names
 	})
 	.flat();
 
-const loadConfig = async (cwd) => {
+const loadConfig = async (folder) => {
 	for (const configFilename of configFilenames) {
 		try {
-			const path = `${cwd}/${configFilename}`;
+			const path = `./configs/${folder}/${configFilename}`;
 
 			await stat(path);
 
@@ -34,18 +52,52 @@ const loadConfig = async (cwd) => {
 	}
 }
 
+const loadConfigNetNaive = async (folder) => {
+	for (const configFilename of configFilenames) {
+		const url = `${configsUrl}/${folder}/${configFilename}`;
+
+		const response = await fetch(url);
+
+		if (response.ok) {
+			return response.text();
+		}
+	}
+}
+
+const loadConfigNet = async (folder) => {
+	const responses = await Promise.allSettled(configFilenames.map(async (configFilename) => {
+		const url = `${configsUrl}/${folder}/${configFilename}`;
+
+		const response = await fetch(url);
+
+		if (response.ok) {
+			return Promise.resolve(await response.text());
+		}
+		else {
+			return Promise.reject();
+		};
+	}));
+
+	return responses.find((response) => response.status === "fulfilled")?.value;
+}
+
 const allDurations = Object.fromEntries(configFilenames.map(name => [name, []]));
 
-for (let index = 0; index <= times; index++) {
+const loadFunction = net
+	? (
+		naive
+			? loadConfigNetNaive
+			: loadConfigNet
+	)
+	: loadConfig;
 
+for (let index = 0; index <= times; index++) {
 	for (const configFilenameFolder of configFilenames) {
-		const path = `./configs/${configFilenameFolder}`;
 		const start = performance.now();
-		await loadConfig(path);
+		await loadFunction(configFilenameFolder);
 		const end = performance.now();
 		const duration = end - start;
 		allDurations[configFilenameFolder].push(duration);
-
 	}
 }
 
@@ -53,7 +105,26 @@ const average = (array) => array.reduce((a, b) => a + b, 0) / array.length;
 
 const averages = Object.fromEntries(
 	Object.entries(allDurations)
-		.map(([name, durations]) => [name, `${average(durations).toFixed(4)}ms`])
+		.map(([name, durations]) => [name, average(durations)])
 );
 
-console.table(averages);
+if (!noResults) {
+	if (noFormat) {
+		console.log(averages);
+	}
+	else {
+		console.table(formatMsTable(averages));
+	}
+}
+
+const averageOfAverages = average(Object.values(averages));
+
+if (!noTotal) {
+	if (noFormat) {
+		console.log(averageOfAverages);
+
+	}
+	else {
+		console.log(`Total average: ${averageOfAverages.toFixed(4)} ms`);
+	}
+}
