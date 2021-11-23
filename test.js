@@ -22,7 +22,6 @@ const noResults = Boolean(extensibleArgs.find((arg) => arg.startsWith("--no-resu
 const noFormat = Boolean(extensibleArgs.find((arg) => arg.startsWith("--no-format")));
 const noTotal = Boolean(extensibleArgs.find((arg) => arg.startsWith("--no-total")));
 
-const format = Boolean(extensibleArgs.find((arg) => arg.startsWith("--format")));
 const times = Number(extensibleArgs.find((arg) => arg.startsWith("--times=")).replace("--times=", ""))
 
 const extensions = extensibleArgs.find((arg) => arg.startsWith("--extensions=")).replace("--extensions=", "").split(",");
