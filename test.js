@@ -52,18 +52,6 @@ const loadConfig = async (folder) => {
 	}
 }
 
-const loadConfigNetNaive = async (folder) => {
-	for (const configFilename of configFilenames) {
-		const url = `${configsUrl}/${folder}/${configFilename}`;
-
-		const response = await fetch(url);
-
-		if (response.ok) {
-			return response.text();
-		}
-	}
-}
-
 const loadConfigNet = async (folder) => {
 	const responses = await Promise.allSettled(configFilenames.map(async (configFilename) => {
 		const url = `${configsUrl}/${folder}/${configFilename}`;
@@ -79,6 +67,18 @@ const loadConfigNet = async (folder) => {
 	}));
 
 	return responses.find((response) => response.status === "fulfilled")?.value;
+}
+
+const loadConfigNetNaive = async (folder) => {
+	for (const configFilename of configFilenames) {
+		const url = `${configsUrl}/${folder}/${configFilename}`;
+
+		const response = await fetch(url);
+
+		if (response.ok) {
+			return response.text();
+		}
+	}
 }
 
 const allDurations = Object.fromEntries(configFilenames.map(name => [name, []]));
